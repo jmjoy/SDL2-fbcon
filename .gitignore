@@ -53,6 +53,9 @@ SDL2ConfigVersion.cmake
 .idea
 cmake-build-*
 
+# for Vscode
+.vscode
+
 # for Xcode
 *.mode1*
 *.perspective*

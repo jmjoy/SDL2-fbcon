@@ -773,6 +773,17 @@ macro(CheckDirectFB)
   endif()
 endmacro()
 
+macro(CheckFBCon)
+  if(SDL_FBCON)
+    set(HAVE_FBCON TRUE)
+    file(GLOB FBCON_SOURCES ${SDL2_SOURCE_DIR}/src/video/fbcon/*.c)
+    list(APPEND SOURCE_FILES ${FBCON_SOURCES})
+    set(SDL_VIDEO_DRIVER_FBCON 1)
+    set(SDL_VIDEO_RENDER_FBCON 1)
+    set(HAVE_SDL_VIDEO TRUE)
+  endif()
+endmacro()
+
 # Requires:
 # - n/a
 macro(CheckVivante)
