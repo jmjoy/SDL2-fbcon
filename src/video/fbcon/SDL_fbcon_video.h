@@ -28,10 +28,12 @@ typedef struct
     int width;
     int height;
     char *mapped_mem;
+    Uint32 format;
 } FBCon_DisplayData;
 
 typedef struct
 {
+    char *mmaped_mem;
 } FBCon_WindowData;
 
 #endif /* SDL_FBCON_VIDEO */

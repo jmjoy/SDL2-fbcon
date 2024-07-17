@@ -9,8 +9,7 @@
 static void *
 do_mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset)
 {
-    void *ret;
-    ret = mmap(start, length, prot, flags, fd, offset);
+    void *ret = mmap(start, length, prot, flags, fd, offset);
     if (ret == (char *) -1 && (flags & MAP_SHARED)) {
         ret = mmap(start, length, prot,
                    (flags & ~MAP_SHARED) | MAP_PRIVATE, fd, offset);
@@ -33,6 +32,8 @@ FB_VideoQuit(_THIS)
 {
 }
 
+static int FBD;
+
 int
 FBCon_VideoInit(_THIS)
 {
@@ -41,10 +42,11 @@ FBCon_VideoInit(_THIS)
         return SDL_OutOfMemory();
     }
 
-    int fd = open("/dev/fb0", O_RDWR, 0);
+    int fd = open("/dev/fb0", O_RDWR);
     if (fd < 0) {
         return SDL_SetError("fbcon: unable to open %s", "/dev/fb0");
     }
+    FBD = fd;
 
     struct fb_fix_screeninfo finfo;
     if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) < 0) {
@@ -62,7 +64,7 @@ FBCon_VideoInit(_THIS)
            vinfo.xres, vinfo.yres, vinfo.bits_per_pixel);
 
     /* Memory map the device, compensating for buggy PPC mmap() */
-    int mapped_memlen = finfo.smem_len;
+    int mapped_memlen = vinfo.yres_virtual * finfo.line_length;
     char *mapped_mem = do_mmap(NULL, mapped_memlen,
                                PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (mapped_mem == (char *) -1) {
@@ -87,6 +89,8 @@ FBCon_VideoInit(_THIS)
     } else {
         current_mode.format = SDL_PIXELFORMAT_RGBX8888;
     }
+    data->format = current_mode.format;
+
     current_mode.driverdata = NULL;
 
     SDL_VideoDisplay display;
@@ -94,8 +98,10 @@ FBCon_VideoInit(_THIS)
     display.desktop_mode = current_mode;
     display.current_mode = current_mode;
     display.driverdata = data;
-    
+
     SDL_AddVideoDisplay(&display, SDL_FALSE);
+
+    _this->checked_texture_framebuffer = SDL_TRUE;
 
     return 0;
 }
@@ -131,9 +137,33 @@ FBCon_CreateWindow(_THIS, SDL_Window *window)
 
     window->w = displaydata->width;
     window->h = displaydata->height;
+    windowdata->mmaped_mem = displaydata->mapped_mem;
 
     /* Setup driver data for this window */
     window->driverdata = windowdata;
+
+    SDL_PixelFormat *format = (SDL_PixelFormat *) SDL_calloc(1, sizeof(SDL_PixelFormat));
+    format->format = displaydata->format;
+    format->BitsPerPixel = 32;
+    format->BytesPerPixel = 4;
+    format->Ashift = 24;
+    format->Amask = 0xffffffff;
+    format->Rshift = 16;
+    format->Gshift = 8;
+    format->Bshift = 0;
+
+    SDL_Surface *surface = (SDL_Surface *) SDL_calloc(1, sizeof(SDL_Surface));
+    surface->format = format;
+    surface->w = displaydata->width;
+    surface->h = displaydata->height;
+    surface->pixels = displaydata->mapped_mem;
+    surface->clip_rect.x = 0;
+    surface->clip_rect.y = 0;
+    surface->clip_rect.w = displaydata->width;
+    surface->clip_rect.h = displaydata->height;
+    surface->pitch = displaydata->width * 4;
+    window->surface = surface;
+    window->surface_valid = SDL_TRUE;
 
     /* One window, it always has focus */
     // SDL_SetMouseFocus(window);
@@ -198,6 +228,43 @@ FBCon_GetWindowWMInfo(_THIS, SDL_Window *window, struct SDL_SysWMinfo *info)
     return SDL_FALSE;
 }
 
+void
+FBCon_PumpEvents(_THIS)
+{
+}
+
+int
+FBCon_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int numrects)
+{
+    return 0;
+
+    FBCon_WindowData *windowdata = (FBCon_WindowData *) window->driverdata;
+    // printf("rect, x: %d, y: %d, w: %d, h: %d", rects->x, rects->y, rects->w, rects->h);
+
+    char *buffer = (char *) SDL_malloc(768*4096);
+    SDL_memcpy(windowdata->mmaped_mem, buffer, 768*4096);
+    SDL_free(buffer);
+
+    // int fd = open("/dev/urandom", O_RDONLY);
+    // if (fd == -1) {
+    //     return SDL_SetError("open file failed");
+    // }
+    // read(fd, &buffer, rects->x * rects->y * 32);
+    // close(fd);
+
+    // int fd = open("/dev/fb0", O_WRONLY);
+    // if (fd < 0) {
+    //     return SDL_SetError("fbcon: unable to open %s", "/dev/fb0");
+    // }
+    // int ret = write(fd, buffer, rects->x * rects->y * 32);
+    // if (ret == -1) {
+    //     return SDL_SetError("fuck");
+    // }
+    // close(fd);
+
+    return 0;
+}
+
 static SDL_VideoDevice *
 FBCon_CreateDevice(void)
 {
@@ -231,6 +298,8 @@ FBCon_CreateDevice(void)
     device->HideWindow = FBCon_HideWindow;
     device->DestroyWindow = FBCon_DestroyWindow;
     device->GetWindowWMInfo = FBCon_GetWindowWMInfo;
+    device->PumpEvents = FBCon_PumpEvents;
+    device->UpdateWindowFramebuffer = FBCon_UpdateWindowFramebuffer;
 
     return device;
 }
