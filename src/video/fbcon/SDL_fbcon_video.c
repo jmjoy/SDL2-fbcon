@@ -87,7 +87,7 @@ FBCon_VideoInit(_THIS)
     if (vinfo.bits_per_pixel == 32) {
         current_mode.format = SDL_PIXELFORMAT_ABGR8888;
     } else {
-        current_mode.format = SDL_PIXELFORMAT_RGBX8888;
+        current_mode.format = SDL_PIXELFORMAT_RGB888;
     }
     data->format = current_mode.format;
 
@@ -134,6 +134,11 @@ FBCon_CreateWindow(_THIS, SDL_Window *window)
     if (windowdata == NULL) {
         return SDL_OutOfMemory();
     }
+
+    /* Always fullscreen */
+    window->flags |= SDL_WINDOW_FULLSCREEN;
+    window->flags |= SDL_WINDOW_SHOWN;
+    window->is_hiding = SDL_TRUE;
 
     window->w = displaydata->width;
     window->h = displaydata->height;
