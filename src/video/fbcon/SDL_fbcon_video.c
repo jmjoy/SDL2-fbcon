@@ -157,6 +157,12 @@ FBCon_CreateWindow(_THIS, SDL_Window *window)
     format->Gshift = 8;
     format->Bshift = 0;
 
+    SDL_BlitMap *map = (SDL_BlitMap *) SDL_calloc(1, sizeof(SDL_BlitMap));
+    map->info.r = 0xFF;
+    map->info.g = 0xFF;
+    map->info.b = 0xFF;
+    map->info.a = 0xFF;
+
     SDL_Surface *surface = (SDL_Surface *) SDL_calloc(1, sizeof(SDL_Surface));
     surface->format = format;
     surface->w = displaydata->width;
@@ -167,6 +173,7 @@ FBCon_CreateWindow(_THIS, SDL_Window *window)
     surface->clip_rect.w = displaydata->width;
     surface->clip_rect.h = displaydata->height;
     surface->pitch = displaydata->width * 4;
+    surface->map = map;
     window->surface = surface;
     window->surface_valid = SDL_TRUE;
 

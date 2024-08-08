@@ -10,6 +10,8 @@
 #include "SDL_syswm.h"
 #include "SDL_version.h"
 #include "SDL_video.h"
+#include "../SDL_blit.h"
+#include "SDL_pixels.h"
 
 #include <fcntl.h>
 #include <linux/fb.h>
